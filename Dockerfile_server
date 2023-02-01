@@ -1,0 +1,28 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    vim \
+    openssh-server \
+    ssh \
+    iputils-ping  \
+    iproute2 \
+    ssh \
+    openjdk-11-jdk \
+    wget
+    
+#VOLUME /home/rusaleev/ci_engineer/server/user/ /root/jenkins
+#VOLUME /home/rusaleev/ci_engineer/server/.ssh/ /root/.ssh
+
+COPY sshd_config /etc/ssh/
+
+RUN mkdir -p /root/jenkins && \
+	echo "root:12345" | chpasswd 
+
+WORKDIR /root/jenkins/
+
+COPY startup.sh /root/
+RUN chmod a+x /root/startup.sh
+
+CMD ["/bin/bash","-c","/root/startup.sh"]
+

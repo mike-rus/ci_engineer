@@ -1,0 +1,98 @@
+version: '3.7'
+services:
+  ubuntu_server:
+    #build: ./Dockerfile_server
+    image: ubuntu:server_v7
+    restart: always
+    user: root
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.10
+    #entrypoint: bash /root/jenkins/startup.sh || sleep infinity #bash /root/jenkins/startup.sh
+    command: bash -c "bash /root/startup.sh; sleep infinity"
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
+    volumes:
+      - /home/rusaleev/ci_engineer/server/user/:/root/jenkins
+      - /home/rusaleev/ci_engineer/server/.ssh/:/root/.ssh
+  jenkis_client:
+    image: jenkins:client_v2
+    restart: always
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.11
+    depends_on:
+      - ubuntu_server
+    user: root
+    ports:
+      - 8080:8080
+      - 50000:50000
+    volumes:
+      - /home/rusaleev/ci_engineer/jenkins:/var/jenkins_home
+    #command: mkdir /var/jenkins_home/.ssh/
+    #command: ssh-keygen -t rsa -C "12345" -m PEM -P "" -f /var/jenkins_home/.ssh/id_rsa
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
+  ubuntu_node:
+    image: ubuntu:server_v7
+    user: root
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.12
+    #entrypoint:  bash /root/jenkins/startup.sh || sleep infinity #bash /root/jenkins/startup.sh
+    command: bash -c "bash /root/startup.sh; sleep infinity"
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
+    volumes:
+      - /home/rusaleev/ci_engineer/node/user/:/root/jenkins
+      - /home/rusaleev/ci_engineer/node/.ssh/:/root/.ssh
+  web:
+    image: 'gitlab/gitlab-ce:latest'
+    restart: always
+    hostname: 'localhost'
+    container_name: gitlab-ce
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost'
+    ports:
+      - '8081:80'
+      - '8443:443'
+    volumes:
+      - '/home/rusaleev/ci_engineer/gitlab/config:/etc/gitlab'
+      - '/home/rusaleev/ci_engineer/gitlab/logs:/var/log/gitlab'
+      - '/home/rusaleev/ci_engineer/gitlab/data:/var/opt/gitlab'
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.13
+  gitlab-runner:
+    image: gitlab/gitlab-runner:alpine
+    container_name: gitlab-runner    
+    restart: always
+    depends_on:
+      - web
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - '/home/rusaleev/ci_engineer/gitlab-runner:/etc/gitlab-runner'
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.14
+
+networks:
+  app_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/24
+
+#service ssh start 
+
+#mkdir /var/jenkins_home/.ssh/ && \ 
+#ssh-keygen -t rsa -C "12345" -m PEM -P "" -f /var/jenkins_home/.ssh/id_rsa
+
+#eval "$(ssh-agent -s)"
+#ssh-add /var/jenkins_home/.ssh/id_rsa
+#ssh-copy-id -i /var/jenkins_home/.ssh/id_rsa.pub root@172.20.0.10
+
+
+#https://gitlab.arrival.co/HMI/sdk_tool/-/blob/develop/docker-compose.yml
